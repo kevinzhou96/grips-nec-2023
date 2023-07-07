@@ -1,0 +1,1 @@
+This folder contains agents that are fully functional. Please place each agent, along with any supporting files, in its own directory.
