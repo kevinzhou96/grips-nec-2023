@@ -3,7 +3,7 @@ You need two things "pip install negmas==0.9.8", "pip install scml==0.5.6".
 The problem of this Agent are lack of learning and reward is not utility function but only absolute of quantity
 
 I mayby put explanation of my code by monday.\
-This is a little explanation of letter version\
+This is a little explanation of letter version code\
 https://docs.google.com/document/d/1GRpdaOJP5q461WiuUdl1h-pyE534zRIDYtiFakeuYVA/edit?usp=sharing
 
 All code is long, so prease refer google colab\
