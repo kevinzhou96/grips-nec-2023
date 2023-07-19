@@ -1,9 +1,8 @@
 import csv
 from AgentQuantTrackerClass import AgentQuantTracker
-# from AgentNonExoTrackerClass import AgentNonExoTracker
 from collections import defaultdict
 
-with open(r'C:\Users\GRIPS\negmas\logs\BQOA_QOA\contracts.csv', newline='') as f:
+with open(r'FILE_PATH_HERE', newline='') as f:
     reader = csv.reader(f)
     data = list(reader)
 
@@ -61,5 +60,3 @@ print('QOA average miss quantity: %f' % (float(QOAabsdiff) / float(QOAinstances 
 
 print('BQOA miss rate: %f' % BQOAMR)
 print('BQOA average miss quantity: %f' % (float(BQOAabsdiff) / float(BQOAinstances - BQOAnotmissedinstances)))     
-            
-# __init__(self, name, a_type, level, exo, quant, day): 
