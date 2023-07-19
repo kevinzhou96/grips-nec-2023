@@ -1,6 +1,6 @@
 You need two things "pip install negmas==0.9.8", "pip install scml==0.5.6".
 
-The problem of this Agent are lack of learning and reward is not utility function but only absolute of quantity
+The problem of this Agent are lack of learning, reward is not utility function but only absolute of quantity and there are some erros in learning
 
 I mayby put explanation of my code by monday.\
 This is a little explanation of letter version code\
