@@ -3,4 +3,5 @@ This agent uses the default QOA behavior when at the more desperate level 0 posi
 When it has the advantage of being in level 1, it uses the HalfGreedyQOA strategy located above.
 
 As with all agents that have static strategies (don't learn over the course of a world), performance is highly dependent on the other
-agents in the simulation. However, in worlds checked consisting of 
+agents in the simulation. However, in worlds checked consisting of these various QOA-based agents, this QOA_HalfGreedy_Hybrid performs
+very well on average, often beating the default QOA strategy.
