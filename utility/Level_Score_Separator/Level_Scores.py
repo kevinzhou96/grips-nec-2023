@@ -6,7 +6,7 @@ tournament_types = [QuantityOrientedAgent,
                     QuantityOriented_HalfGreedyHybrid,
                     HalfDesparateHalfGreedyQOA
                     ]
-# may take a long time++
+
 results = anac2023_oneshot(
     competitors=tournament_types,
     n_configs=4, # number of different configurations to generate
@@ -29,8 +29,6 @@ plt.show()
 results.score_stats
 
 results.scores.loc[:, ["agent_name", "agent_type", "score"]].head()
-
-print(type(results.scores[["agent_type", "level", "score"]].level))
 
 level0score_total = defaultdict(float)
 level0instances = defaultdict(float)
