@@ -6,4 +6,4 @@ Otherwise, reject the offer and record the quantity offered (if it's an amount w
 
 
 
-In the tournaments I've checked this agent in, it tends to perform extremely poorly.
+In the tournaments I've checked this agent in, it tends to perform poorly.
