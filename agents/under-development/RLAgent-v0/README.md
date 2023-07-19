@@ -1,4 +1,4 @@
-RLAgent-v0: a first attempt at using the new RL interface for SCML and Stable Baselines 3 to train an agent.
+RLAgent-v0: a first attempt at an RL agent
 ==================================
 
 
