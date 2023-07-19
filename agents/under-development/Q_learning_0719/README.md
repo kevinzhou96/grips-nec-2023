@@ -6,7 +6,7 @@ I mayby put explanation of my code by monday.\
 This is a little explanation of letter version code\
 https://docs.google.com/document/d/1GRpdaOJP5q461WiuUdl1h-pyE534zRIDYtiFakeuYVA/edit?usp=sharing
 
-All code is long, so prease refer google colab\
+Not all code is putted, so prease refer google colab\
 https://colab.research.google.com/drive/1h68RoxJLNEvi5G7WS8FX86ObQEIdQOkC?usp=sharing\
 
 \
