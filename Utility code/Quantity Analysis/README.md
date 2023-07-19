@@ -1,0 +1,2 @@
+This repository is for utility code related to analyzing quantity values. Examples include tracking exogenous input and output,
+as well as tracking the frequency of mismatched exogenous quantity and negotiated quantity and the magnitude/average difference in such occurrences.
