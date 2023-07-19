@@ -26,12 +26,17 @@ from scml.oneshot.rl.observation import (
 
 from stable_baselines3 import A2C, PPO, DQN
 
-def make_oneshot_env(
-        level : int = 0,
-        n_consumers : int = 4,
-        n_suppliers: int = 0,
+def make_training_env(
+        level : int,
+        n_partners : int,
         extra_checks : bool = False,
 ) -> OneShotEnv:
+    if level == 0:
+        n_consumers = n_partners
+        n_suppliers = 0
+    else:
+        n_consumers = 0
+        n_suppliers = n_partners
     factory = FixedPartnerNumbersOneShotFactory(
         n_suppliers=n_suppliers,
         n_consumers=n_consumers,
@@ -46,12 +51,11 @@ def make_oneshot_env(
 
 def train(
         level : int = 0,
-        n_consumers : int = 4,
-        n_suppliers : int = 0,
-        total_timesteps : int = 100_000,
+        n_partners : int = 4,
+        total_timesteps : int = 10_000,
         algorithm = "PPO",
 ):
-    env_train = make_oneshot_env(level=level, n_consumers=n_consumers, n_suppliers=n_suppliers)
+    env_train = make_training_env(level=level, n_partners=n_partners)
 
     alg = dict(
         PPO=PPO,
@@ -61,8 +65,6 @@ def train(
     model = alg("MlpPolicy", env_train, verbose=1)
     model.learn(total_timesteps=total_timesteps)
 
-
-    n_partners = n_consumers + n_suppliers
     model_name = f"{algorithm}_L{level}_{n_partners}-partners_{time.strftime('%Y%m%d-%H%M%S')}"
     model.save(os.path.join(os.path.dirname(os.path.realpath(__file__)), "models", model_name))
 
