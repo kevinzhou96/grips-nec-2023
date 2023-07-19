@@ -9,7 +9,8 @@ https://docs.google.com/document/d/1GRpdaOJP5q461WiuUdl1h-pyE534zRIDYtiFakeuYVA/
 All code is long, so prease refer google colab\
 https://colab.research.google.com/drive/1h68RoxJLNEvi5G7WS8FX86ObQEIdQOkC?usp=sharing\
 
-"""
+\
+"""\
 abstruct of my code in google colab\
 If you change some code in my google colab, The change is not preserved. So, you can change code feel free.
 
@@ -33,7 +34,7 @@ prepare initial state of Q-value: prepare initial state of Q_propose_matrix and 
 
 function: define functions for treating Q_propose_matrix and Q_respond_matrix
 
-try anac2023OneShot: try anac2023OneShot
-  prepare: install and define function for trying anac2023OneShot
-  execution: define some parameters and execute
+try anac2023OneShot: try anac2023OneShot\
+  prepare: install and define function for trying anac2023OneShot\
+  execution: define some parameters and execute\
 """
