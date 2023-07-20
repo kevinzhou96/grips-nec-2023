@@ -17,5 +17,5 @@ def format_time(seconds : float | int) -> str:
         strings.append(f"{round(seconds*1000)} ms")
     return ' '.join(strings)
             
-def current_file_dir():
-    return os.path.dirname(os.path.realpath(__file__))
+def get_dirname(path):
+    return os.path.dirname(os.path.realpath(path))
