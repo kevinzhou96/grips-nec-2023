@@ -27,7 +27,7 @@ from scml.oneshot.rl.observation import (
 
 from stable_baselines3 import A2C, PPO, DQN
 
-from .util import format_time, get_dirname
+from util import format_time, get_dirname
 
 def make_training_env(
         level : int,

@@ -38,7 +38,7 @@ from stable_baselines3 import A2C, PPO, DQN
 
 from tqdm import tqdm
 
-from .util import format_time, get_dirname
+from util import format_time, get_dirname
 
 # def test_tournament(
 #         agent : OneShotRLAgent,
@@ -136,7 +136,7 @@ def print_type_scores(type_scores):
 
 
 if __name__ == '__main__':
-    model = PPO.load(os.path.join(get_dirname(__file__), "models", "PPO_L0_4-partners_50000-steps_20230720-121253"))
+    model = PPO.load(os.path.join(get_dirname(__file__), "models", "PPO_L0_4-partners_100000-steps_20230720-151039"))
     world, ascores, tscores = test(
         model=model, 
         level=0, 
