@@ -1,5 +1,6 @@
 import os
 import time
+import datetime
 import random
 import numpy as np
 from collections import defaultdict
@@ -37,6 +38,8 @@ from stable_baselines3 import A2C, PPO, DQN
 
 from tqdm import tqdm
 
+from .util import format_time, get_dirname
+
 # def test_tournament(
 #         agent : OneShotRLAgent,
 #         n_steps : tuple[int, int] | int = (50,200),
@@ -60,6 +63,7 @@ from tqdm import tqdm
 #     print(tabulate(results.total_scores, headers="keys", tablefmt="psql"))  # type: ignore
 #     print(f"Finished in {humanize_time(time.perf_counter() - start)}")
 
+
 def test(
         model,
         level : int,
@@ -80,13 +84,14 @@ def test(
     type_scores = defaultdict(float)
     counts = defaultdict(int)
     agent_scores = dict()
+
     for _ in tqdm(range(n_trials)):
         world, agents = factory(
             types=(OneShotRLAgent,),
             params=(dict(models=[model_wrapper(model)], observation_managers=[obs_manager], action_managers=[act_manager]),),
         )
-
         world.run()
+
         all_scores = world.scores()
         for aid, agent in world.agents.items():
             if is_system_agent(aid):
@@ -131,6 +136,11 @@ def print_type_scores(type_scores):
 
 
 if __name__ == '__main__':
-    model = PPO.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), "models", "PPO_L0_4-partners_20230719-121103"))
-    world, ascores, tscores = test(model=model, level=0, n_partners=4, n_trials=5)
+    model = PPO.load(os.path.join(get_dirname(__file__), "models", "PPO_L0_4-partners_50000-steps_20230720-121253"))
+    world, ascores, tscores = test(
+        model=model, 
+        level=0, 
+        n_partners=4, 
+        n_trials=5,
+    )
     print_type_scores(tscores)
