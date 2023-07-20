@@ -70,12 +70,12 @@ def train(
         DQN=DQN,
     )[algorithm]
     model = alg("MlpPolicy", env_train, verbose=verbose, tensorboard_log=logdir)
+    model_name = f"{algorithm}_L{level}_{n_partners}-partners_{total_timesteps}-steps_{time.strftime('%Y%m%d-%H%M%S')}"
 
     if verbose:
         start = time.perf_counter()
-    model.learn(total_timesteps=total_timesteps)
+    model.learn(total_timesteps=total_timesteps, tb_log_name=model_name)
 
-    model_name = f"{algorithm}_L{level}_{n_partners}-partners_{total_timesteps}-steps_{time.strftime('%Y%m%d-%H%M%S')}"
     model.save(os.path.join(get_dirname(__file__), "models", model_name))
 
     if verbose:
@@ -83,4 +83,8 @@ def train(
 
 if __name__ == '__main__':
     logdir = os.path.join(get_dirname(__file__), "logs", "")
-    train(total_timesteps=100_000, logdir=logdir)
+    train(
+        algorithm="PPO", 
+        total_timesteps=50_000, 
+        logdir=logdir
+    )

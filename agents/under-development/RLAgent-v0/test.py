@@ -78,7 +78,7 @@ def test(
         n_suppliers = n_partners
     
     factory = FixedPartnerNumbersOneShotFactory(level=level, n_consumers=n_consumers, n_suppliers=n_suppliers)
-    obs_manager = FixedPartnerNumbersObservationManager(factory=factory)
+    obs_manager = FixedPartnerNumbersObservationManager(factory=factory, extra_checks=False)
     act_manager = FixedPartnerNumbersActionManager(factory=factory)
 
     type_scores = defaultdict(float)
@@ -136,11 +136,20 @@ def print_type_scores(type_scores):
 
 
 if __name__ == '__main__':
-    model = PPO.load(os.path.join(get_dirname(__file__), "models", "PPO_L0_4-partners_100000-steps_20230720-151039"))
-    world, ascores, tscores = test(
-        model=model, 
-        level=0, 
-        n_partners=4, 
-        n_trials=5,
-    )
-    print_type_scores(tscores)
+    modelnames = [
+        # 'PPO_L0_4-partners_1000-steps_20230720-121430',
+        # 'PPO_L0_4-partners_10000-steps_20230720-111901',
+        # 'PPO_L0_4-partners_50000-steps_20230720-121253',
+        # 'PPO_L0_4-partners_100000-steps_20230720-151039',
+        'A2C_L0_4-partners_10000-steps_20230720-155620',
+    ]
+    for modelname in modelnames:
+        model = PPO.load(os.path.join(get_dirname(__file__), "models", modelname))
+        world, ascores, tscores = test(
+            model=model, 
+            level=0, 
+            n_partners=4, 
+            n_trials=5,
+        )
+        print(f"Model {modelname} scores:")
+        print_type_scores(tscores)
