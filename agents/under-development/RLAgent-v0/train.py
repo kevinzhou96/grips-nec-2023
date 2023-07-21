@@ -26,6 +26,7 @@ from scml.oneshot.rl.observation import (
 )
 
 from stable_baselines3 import A2C, PPO, DQN
+from stable_baselines3.common.callbacks import CheckpointCallback, EveryNTimesteps
 
 from util import format_time, get_dirname
 
@@ -61,6 +62,7 @@ def train(
         algorithm : str = "PPO",
         verbose : bool = True,
         logdir : str | None = None,
+        checkpoint_freq : int = 0,
 ):
     env_train = make_training_env(level=level, n_partners=n_partners)
 
@@ -72,9 +74,23 @@ def train(
     model = alg("MlpPolicy", env_train, verbose=verbose, tensorboard_log=logdir)
     model_name = f"{algorithm}_L{level}_{n_partners}-partners_{total_timesteps}-steps_{time.strftime('%Y%m%d-%H%M%S')}"
 
+    if checkpoint_freq:
+        checkpoint_callback = CheckpointCallback(
+            save_freq=checkpoint_freq,
+            save_path=os.path.join(get_dirname(__file__),"models","checkpoints"),
+            name_prefix=model_name,
+        )
+    else:
+        checkpoint_callback = None
+
     if verbose:
         start = time.perf_counter()
-    model.learn(total_timesteps=total_timesteps, tb_log_name=model_name)
+    model.learn(
+        total_timesteps=total_timesteps, 
+        tb_log_name=model_name, 
+        progress_bar=True,
+        callback=checkpoint_callback,
+    )
 
     model.save(os.path.join(get_dirname(__file__), "models", model_name))
 
@@ -85,6 +101,7 @@ if __name__ == '__main__':
     logdir = os.path.join(get_dirname(__file__), "logs", "")
     train(
         algorithm="PPO", 
-        total_timesteps=50_000, 
-        logdir=logdir
+        total_timesteps=1_000_000, 
+        logdir=logdir,
+        verbose=False,
     )
