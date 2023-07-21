@@ -39,6 +39,7 @@ from stable_baselines3 import A2C, PPO, DQN
 from tqdm import tqdm
 
 from util import format_time, get_dirname
+from observation import BetterFixedPartnerNumbersObservationManager
 
 # def test_tournament(
 #         agent : OneShotRLAgent,
@@ -66,6 +67,7 @@ from util import format_time, get_dirname
 
 def test(
         model,
+        obs_manager_type,
         level : int,
         n_partners : int,
         n_trials : int = 20,
@@ -78,7 +80,7 @@ def test(
         n_suppliers = n_partners
     
     factory = FixedPartnerNumbersOneShotFactory(level=level, n_consumers=n_consumers, n_suppliers=n_suppliers)
-    obs_manager = FixedPartnerNumbersObservationManager(factory=factory, extra_checks=False)
+    obs_manager = obs_manager_type(factory=factory, extra_checks=False)
     act_manager = FixedPartnerNumbersActionManager(factory=factory)
 
     type_scores = defaultdict(float)
@@ -136,20 +138,20 @@ def print_type_scores(type_scores):
 
 
 if __name__ == '__main__':
-    modelnames = [
-        # 'PPO_L0_4-partners_1000-steps_20230720-121430',
-        # 'PPO_L0_4-partners_10000-steps_20230720-111901',
-        # 'PPO_L0_4-partners_50000-steps_20230720-121253',
-        # 'PPO_L0_4-partners_100000-steps_20230720-151039',
-        'A2C_L0_4-partners_10000-steps_20230720-155620',
+    models = [
+        # 'PPO_L0_4-partners_10000-steps_20230721-122249',
+        ('PPO_L0_4-partners_100000-steps_20230721-150853_UPDATED-OBSSPACE', BetterFixedPartnerNumbersObservationManager)
     ]
-    for modelname in modelnames:
+    for modelname, obsmanager in models:
         model = PPO.load(os.path.join(get_dirname(__file__), "models", modelname))
+        
         world, ascores, tscores = test(
             model=model, 
+            obs_manager_type=obsmanager,
             level=0, 
             n_partners=4, 
             n_trials=5,
         )
         print(f"Model {modelname} scores:")
         print_type_scores(tscores)
+        print(analyze_contracts(world))

@@ -23,16 +23,19 @@ from scml.oneshot.rl.factory import (
 from scml.oneshot.rl.observation import (
     FixedPartnerNumbersObservationManager,
     LimitedPartnerNumbersObservationManager,
+    ObservationManager
 )
 
 from stable_baselines3 import A2C, PPO, DQN
 from stable_baselines3.common.callbacks import CheckpointCallback, EveryNTimesteps
 
 from util import format_time, get_dirname
+from observation import BetterFixedPartnerNumbersObservationManager
 
 def make_training_env(
         level : int,
         n_partners : int,
+        obs_manager_type : ObservationManager,
         extra_checks : bool = False,
 ) -> OneShotEnv:
     
@@ -50,7 +53,7 @@ def make_training_env(
     )
     return OneShotEnv(
         action_manager=FixedPartnerNumbersActionManager(factory=factory),
-        observation_manager=FixedPartnerNumbersObservationManager(factory=factory, extra_checks=extra_checks),
+        observation_manager=obs_manager_type(factory=factory, extra_checks=True),
         factory=factory,
         extra_checks=extra_checks,
     )
@@ -58,13 +61,15 @@ def make_training_env(
 def train(
         level : int = 0,
         n_partners : int = 4,
+        obs_manager_type : ObservationManager = FixedPartnerNumbersObservationManager,
         total_timesteps : int = 10_000,
         algorithm : str = "PPO",
-        verbose : bool = True,
+        progress_bar : bool = True,
+        verbose : bool = False,
         logdir : str | None = None,
         checkpoint_freq : int = 0,
 ):
-    env_train = make_training_env(level=level, n_partners=n_partners)
+    env_train = make_training_env(level=level, n_partners=n_partners, obs_manager_type=obs_manager_type)
 
     alg = dict(
         PPO=PPO,
@@ -80,28 +85,35 @@ def train(
             save_path=os.path.join(get_dirname(__file__),"models","checkpoints"),
             name_prefix=model_name,
         )
+        print(f"Checkpointing every {checkpoint_freq} iters")
     else:
         checkpoint_callback = None
 
-    if verbose:
-        start = time.perf_counter()
     model.learn(
         total_timesteps=total_timesteps, 
         tb_log_name=model_name, 
-        progress_bar=True,
+        progress_bar=progress_bar,
         callback=checkpoint_callback,
     )
 
     model.save(os.path.join(get_dirname(__file__), "models", model_name))
 
-    if verbose:
-        print(f"Finished training in {format_time(time.perf_counter() - start)}")
-
 if __name__ == '__main__':
     logdir = os.path.join(get_dirname(__file__), "logs", "")
+
+    steps_per_update = 2048
+    n_updates = 50
+    total_timesteps = steps_per_update * n_updates
+    checkpoint_freq = steps_per_update * 5
+    if total_timesteps >= 250_000:
+        checkpoint_freq = (n_updates // 10) * steps_per_update
+    
     train(
+        obs_manager_type=BetterFixedPartnerNumbersObservationManager,
         algorithm="PPO", 
-        total_timesteps=1_000_000, 
+        total_timesteps=total_timesteps, 
         logdir=logdir,
+        progress_bar=True,
         verbose=False,
+        checkpoint_freq=checkpoint_freq,
     )
