@@ -25,17 +25,20 @@ from scml.oneshot.rl.observation import (
     LimitedPartnerNumbersObservationManager,
     ObservationManager
 )
+from scml.oneshot.rl.reward import DefaultRewardFunction, RewardFunction
 
 from stable_baselines3 import A2C, PPO, DQN
 from stable_baselines3.common.callbacks import CheckpointCallback, EveryNTimesteps
 
 from util import format_time, get_dirname
 from observation import BetterFixedPartnerNumbersObservationManager
+from reward import ReducingNeedsReward
 
 def make_training_env(
         level : int,
         n_partners : int,
         obs_manager_type : ObservationManager,
+        reward_function : RewardFunction = DefaultRewardFunction(),
         extra_checks : bool = False,
 ) -> OneShotEnv:
     
@@ -56,28 +59,36 @@ def make_training_env(
         observation_manager=obs_manager_type(factory=factory, extra_checks=True),
         factory=factory,
         extra_checks=extra_checks,
+        reward_function=reward_function,
     )
 
 def train(
         level : int = 0,
         n_partners : int = 4,
         obs_manager_type : ObservationManager = FixedPartnerNumbersObservationManager,
+        reward_function : RewardFunction = DefaultRewardFunction(),
         total_timesteps : int = 10_000,
         algorithm : str = "PPO",
         progress_bar : bool = True,
         verbose : bool = False,
         logdir : str | None = None,
         checkpoint_freq : int = 0,
+        pretrained : str | None = None,
 ):
-    env_train = make_training_env(level=level, n_partners=n_partners, obs_manager_type=obs_manager_type)
+    env_train = make_training_env(level=level, n_partners=n_partners, obs_manager_type=obs_manager_type, reward_function=reward_function)
 
     alg = dict(
         PPO=PPO,
         A2C=A2C,
         DQN=DQN,
     )[algorithm]
-    model = alg("MlpPolicy", env_train, verbose=verbose, tensorboard_log=logdir)
-    model_name = f"{algorithm}_L{level}_{n_partners}-partners_{total_timesteps}-steps_{time.strftime('%Y%m%d-%H%M%S')}"
+    
+    if pretrained:
+        model = alg.load(pretrained, env=env_train)
+        model_name = f"{os.path.basename(pretrained)}_{total_timesteps}-additional-steps"
+    else:
+        model = alg("MlpPolicy", env_train, verbose=verbose, tensorboard_log=logdir)
+        model_name = f"{algorithm}_L{level}_{n_partners}-partners_{time.strftime('%Y%m%d-%H%M%S')}_{total_timesteps}-steps"
 
     if checkpoint_freq:
         checkpoint_callback = CheckpointCallback(
@@ -102,18 +113,23 @@ if __name__ == '__main__':
     logdir = os.path.join(get_dirname(__file__), "logs", "")
 
     steps_per_update = 2048
-    n_updates = 50
+    n_updates = 20
     total_timesteps = steps_per_update * n_updates
     checkpoint_freq = steps_per_update * 5
     if total_timesteps >= 250_000:
         checkpoint_freq = (n_updates // 10) * steps_per_update
     
+    # pretrained = os.path.join(get_dirname(__file__), "models", "checkpoints", "PPO_L0_4-partners_102400-steps_20230724-122807_61440_steps")
+    pretrained = None
+
     train(
-        obs_manager_type=BetterFixedPartnerNumbersObservationManager,
+        obs_manager_type=FixedPartnerNumbersObservationManager,
+        reward_function=ReducingNeedsReward(),
         algorithm="PPO", 
         total_timesteps=total_timesteps, 
         logdir=logdir,
         progress_bar=True,
         verbose=False,
         checkpoint_freq=checkpoint_freq,
+        pretrained=pretrained,
     )
