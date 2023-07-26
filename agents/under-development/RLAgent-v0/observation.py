@@ -75,8 +75,8 @@ class BetterFixedPartnerNumbersObservationManager(ObservationManager):
                     )
                 )
                 + [self.max_quantity + 1]
-                + [self.negotiation_limit]
-                + [max(max_agents_per_level, max_n_competitors)]
+                + [self.negotiation_limit + 1]
+                + [max(max_agents_per_level, max_n_competitors) + 1]
                 + [self.n_bins + 1] * 4
             ).flatten()
         )

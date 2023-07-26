@@ -14,9 +14,7 @@ from scml.oneshot import is_system_agent
 from scml.oneshot.common import QUANTITY
 from scml.oneshot.rl.action import (
     ActionManager,
-    FixedPartnerNumbersActionManager,
-    LimitedPartnerNumbersActionManager,
-    UnconstrainedActionManager,
+    DefaultActionManager
 )
 from scml.oneshot.rl.agent import OneShotRLAgent
 from scml.oneshot.rl.common import model_wrapper
@@ -81,7 +79,7 @@ def test(
     
     factory = FixedPartnerNumbersOneShotFactory(level=level, n_consumers=n_consumers, n_suppliers=n_suppliers)
     obs_manager = obs_manager_type(factory=factory, extra_checks=False)
-    act_manager = FixedPartnerNumbersActionManager(factory=factory)
+    act_manager = DefaultActionManager(factory=factory)
 
     type_scores = defaultdict(float)
     counts = defaultdict(int)
@@ -140,7 +138,8 @@ def print_type_scores(type_scores):
 if __name__ == '__main__':
     models = [
         # 'PPO_L0_4-partners_10000-steps_20230721-122249',
-        ('PPO_L0_4-partners_100000-steps_20230721-150853_UPDATED-OBSSPACE', BetterFixedPartnerNumbersObservationManager)
+        # ('PPO_L0_4-partners_20230726-141236_102400-steps', BetterFixedPartnerNumbersObservationManager),
+        ('PPO_L0_4-partners_20230726-144321_102400-steps', BetterFixedPartnerNumbersObservationManager),
     ]
     for modelname, obsmanager in models:
         model = PPO.load(os.path.join(get_dirname(__file__), "models", modelname))
@@ -150,8 +149,8 @@ if __name__ == '__main__':
             obs_manager_type=obsmanager,
             level=0, 
             n_partners=4, 
-            n_trials=5,
+            n_trials=40,
         )
         print(f"Model {modelname} scores:")
         print_type_scores(tscores)
-        print(analyze_contracts(world))
+        # print(analyze_contracts(world))
