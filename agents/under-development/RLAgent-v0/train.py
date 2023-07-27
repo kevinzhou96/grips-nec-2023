@@ -4,7 +4,6 @@ import time
 import numpy as np
 from negmas.gb.common import ResponseType
 from negmas.sao.common import SAOResponse
-from negmas.helpers import humanize_time
 
 from scml.oneshot.common import QUANTITY
 from scml.oneshot.rl.action import (
@@ -28,8 +27,9 @@ from scml.oneshot.rl.reward import DefaultRewardFunction, RewardFunction
 import gymnasium as gym
 
 from stable_baselines3 import A2C, PPO, DQN
-from stable_baselines3.common.callbacks import CheckpointCallback, EveryNTimesteps
+from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.monitor import Monitor
 
 from util import format_time, get_dirname
 from observation import BetterFixedPartnerNumbersObservationManager
@@ -82,11 +82,12 @@ def train(
         n_steps : int = 2048,
         n_envs : int = 1,
         env_kwargs : dict = dict(),
+        model_kwargs : dict = dict(),
         learning_kwargs : dict = dict(),
         **kwargs,
 ):
     if n_envs  > 1:
-        env_train = SubprocVecEnv([lambda: make_training_env(level=level, n_partners=n_partners, obs_manager_type=obs_manager_type, reward_function=reward_function, **env_kwargs) 
+        env_train = SubprocVecEnv([lambda: Monitor(make_training_env(level=level, n_partners=n_partners, obs_manager_type=obs_manager_type, reward_function=reward_function, **env_kwargs)) 
                                    for _ in range(n_envs)])
     else:
         env_train = make_training_env(level=level, n_partners=n_partners, obs_manager_type=obs_manager_type, reward_function=reward_function, **env_kwargs)
@@ -101,7 +102,7 @@ def train(
         model = alg.load(pretrained, env=env_train)
         model_name = f"{os.path.basename(pretrained)}_{total_timesteps}-additional-steps"
     else:
-        model = alg("MlpPolicy", env_train, verbose=verbose, tensorboard_log=logdir, n_steps=n_steps)
+        model = alg("MlpPolicy", env_train, verbose=verbose, tensorboard_log=logdir, n_steps=n_steps, **model_kwargs)
         model_name = f"{algorithm}_L{level}_{n_partners}-partners_{time.strftime('%Y%m%d-%H%M%S')}_{total_timesteps}-steps"
 
     if checkpoint_freq:
@@ -128,11 +129,11 @@ if __name__ == '__main__':
     logdir = os.path.join(get_dirname(__file__), "logs", "")
 
     steps_per_update = 1024
-    n_updates = 1000
+    n_updates = 50
     total_timesteps = steps_per_update * n_updates
 
     min_checkpoint_freq = 20_480
-    max_checkpoint_freq = 102_400
+    max_checkpoint_freq = 51_200
 
     if total_timesteps < min_checkpoint_freq * 4:
         checkpoint_freq = 0
@@ -153,7 +154,8 @@ if __name__ == '__main__':
         checkpoint_freq=checkpoint_freq,
         pretrained=pretrained,
         n_steps=steps_per_update,
-        # n_envs=4, # CAUTION: USING MULTIPLE ENVS REQUIRES A CHANGE TO THE ENVIRONMENT REGISTRATION
+        n_envs=4, # CAUTION: USING MULTIPLE ENVS REQUIRES A CHANGE TO THE ENVIRONMENT REGISTRATION
         env_kwargs=dict(),
-        learning_kwargs={'learning_rate' : 1e-3},
+        model_kwargs={'learning_rate': 5e-3},
+        learning_kwargs=dict(),
     )

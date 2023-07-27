@@ -29,7 +29,7 @@ class BetterFixedPartnerNumbersObservationManager(ObservationManager):
     n_sigmas: int = 2
     extra_checks: bool = True
     n_prices: int = 2
-    negotiation_limit : int = 20
+    negotiation_limit : int = 40
     n_partners: int = field(init=False)
     n_suppliers: int = field(init=False)
     n_consumers: int = field(init=False)
