@@ -5,7 +5,6 @@ import numpy as np
 from negmas.gb.common import ResponseType
 from negmas.sao.common import SAOResponse
 
-from scml.oneshot.common import QUANTITY
 from scml.oneshot.rl.action import (
     ActionManager,
     DefaultActionManager,
@@ -31,7 +30,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.monitor import Monitor
 
-from util import format_time, get_dirname
+from util import get_dirname
 from observation import BetterFixedPartnerNumbersObservationManager
 from reward import (
     ReducingNeedsReward,
@@ -104,10 +103,10 @@ def train(
     else:
         model = alg("MlpPolicy", env_train, verbose=verbose, tensorboard_log=logdir, n_steps=n_steps, **model_kwargs)
         model_name = f"{algorithm}_L{level}_{n_partners}-partners_{time.strftime('%Y%m%d-%H%M%S')}_{total_timesteps}-steps"
-
+    
     if checkpoint_freq:
         checkpoint_callback = CheckpointCallback(
-            save_freq=checkpoint_freq,
+            save_freq=(checkpoint_freq // n_envs),
             save_path=os.path.join(get_dirname(__file__),"models","checkpoints", model_name),
             name_prefix=model_name,
         )
@@ -129,7 +128,7 @@ if __name__ == '__main__':
     logdir = os.path.join(get_dirname(__file__), "logs", "")
 
     steps_per_update = 1024
-    n_updates = 50
+    n_updates = 1000
     total_timesteps = steps_per_update * n_updates
 
     min_checkpoint_freq = 20_480
@@ -143,6 +142,9 @@ if __name__ == '__main__':
     # pretrained = os.path.join(get_dirname(__file__), "models", "checkpoints", "PPO_L0_4-partners_102400-steps_20230724-122807_61440_steps")
     pretrained = None
 
+    def exponential_decay(initial_learning_rate, final_learning_rate, t):
+        return initial_learning_rate * (final_learning_rate / initial_learning_rate) ** (1 - t)
+
     train(
         obs_manager_type=BetterFixedPartnerNumbersObservationManager,
         reward_function=QuantityBasedReward(),
@@ -154,8 +156,8 @@ if __name__ == '__main__':
         checkpoint_freq=checkpoint_freq,
         pretrained=pretrained,
         n_steps=steps_per_update,
-        n_envs=4, # CAUTION: USING MULTIPLE ENVS REQUIRES A CHANGE TO THE ENVIRONMENT REGISTRATION
+        n_envs=4, 
         env_kwargs=dict(),
-        model_kwargs={'learning_rate': 5e-3},
+        model_kwargs={'learning_rate': lambda t: exponential_decay(1e-2, 1e-5, t)},
         learning_kwargs=dict(),
     )
