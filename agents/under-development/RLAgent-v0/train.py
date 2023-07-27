@@ -25,8 +25,11 @@ from scml.oneshot.rl.observation import (
 )
 from scml.oneshot.rl.reward import DefaultRewardFunction, RewardFunction
 
+import gymnasium as gym
+
 from stable_baselines3 import A2C, PPO, DQN
 from stable_baselines3.common.callbacks import CheckpointCallback, EveryNTimesteps
+from stable_baselines3.common.vec_env import SubprocVecEnv
 
 from util import format_time, get_dirname
 from observation import BetterFixedPartnerNumbersObservationManager
@@ -55,6 +58,7 @@ def make_training_env(
         n_consumers=n_consumers,
         level=level,
     )
+
     return OneShotEnv(
         action_manager=DefaultActionManager(factory=factory),
         observation_manager=obs_manager_type(factory=factory, extra_checks=extra_checks),
@@ -76,9 +80,16 @@ def train(
         checkpoint_freq : int = 0,
         pretrained : str | None = None,
         n_steps : int = 2048,
+        n_envs : int = 1,
+        env_kwargs : dict = dict(),
+        learning_kwargs : dict = dict(),
         **kwargs,
 ):
-    env_train = make_training_env(level=level, n_partners=n_partners, obs_manager_type=obs_manager_type, reward_function=reward_function)
+    if n_envs  > 1:
+        env_train = SubprocVecEnv([lambda: make_training_env(level=level, n_partners=n_partners, obs_manager_type=obs_manager_type, reward_function=reward_function, **env_kwargs) 
+                                   for _ in range(n_envs)])
+    else:
+        env_train = make_training_env(level=level, n_partners=n_partners, obs_manager_type=obs_manager_type, reward_function=reward_function, **env_kwargs)
 
     alg = dict(
         PPO=PPO,
@@ -96,7 +107,7 @@ def train(
     if checkpoint_freq:
         checkpoint_callback = CheckpointCallback(
             save_freq=checkpoint_freq,
-            save_path=os.path.join(get_dirname(__file__),"models","checkpoints"),
+            save_path=os.path.join(get_dirname(__file__),"models","checkpoints", model_name),
             name_prefix=model_name,
         )
         print(f"Checkpointing every {checkpoint_freq} iters")
@@ -108,6 +119,7 @@ def train(
         tb_log_name=model_name, 
         progress_bar=progress_bar,
         callback=checkpoint_callback,
+        **learning_kwargs,
     )
 
     model.save(os.path.join(get_dirname(__file__), "models", model_name))
@@ -115,14 +127,18 @@ def train(
 if __name__ == '__main__':
     logdir = os.path.join(get_dirname(__file__), "logs", "")
 
-    steps_per_update = 512
-    n_updates = 200
+    steps_per_update = 1024
+    n_updates = 1000
     total_timesteps = steps_per_update * n_updates
-    checkpoint_freq = 20_480
-    if total_timesteps > 204_800:
-        checkpoint_freq = (n_updates // 10) * steps_per_update
-    if total_timesteps < checkpoint_freq * 4:
+
+    min_checkpoint_freq = 20_480
+    max_checkpoint_freq = 102_400
+
+    if total_timesteps < min_checkpoint_freq * 4:
         checkpoint_freq = 0
+    else:
+        checkpoint_freq = max(min_checkpoint_freq, min((n_updates // 10)* steps_per_update, max_checkpoint_freq))
+
     # pretrained = os.path.join(get_dirname(__file__), "models", "checkpoints", "PPO_L0_4-partners_102400-steps_20230724-122807_61440_steps")
     pretrained = None
 
@@ -137,4 +153,7 @@ if __name__ == '__main__':
         checkpoint_freq=checkpoint_freq,
         pretrained=pretrained,
         n_steps=steps_per_update,
+        # n_envs=4, # CAUTION: USING MULTIPLE ENVS REQUIRES A CHANGE TO THE ENVIRONMENT REGISTRATION
+        env_kwargs=dict(),
+        learning_kwargs={'learning_rate' : 1e-3},
     )
