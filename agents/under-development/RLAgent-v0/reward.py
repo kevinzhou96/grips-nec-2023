@@ -26,6 +26,8 @@ def get_current_negotiation_round(awi : OneShotAWI):
         negotiation_round = max(negotiation_round, info.nmi.state.step)
     return negotiation_round
 
+
+
 class ReducingNeedsReward(RewardFunction):
     def before_action(self, awi: OneShotAWI) -> Any:
         needs = awi.state.needed_sales if awi.level == 0 else awi.state.needed_supplies
@@ -34,10 +36,13 @@ class ReducingNeedsReward(RewardFunction):
     def __call__(self, awi: OneShotAWI, action: dict[str, tuple[int, int, int]], info: Any) -> float:
         old_balance, old_needs = info
         current_needs = awi.state.needed_sales if awi.level == 0 else awi.state.needed_supplies
+        weight = 1
         
         # return abs(old_needs) - abs(current_needs) if get_current_negotiation_round(awi) != 0 else 0
-        return (awi.current_balance - old_balance) + ((abs(old_needs) - abs(current_needs)) if get_current_negotiation_round(awi) != 0 else 0)
+        return (awi.current_balance - old_balance) + ((abs(old_needs) - abs(current_needs)) if get_current_negotiation_round(awi) != 0 else 0) * weight
     
+
+
 class QuantityBasedReward(RewardFunction):
     def before_action(self, awi: OneShotAWI) -> Any:
         needs = awi.state.needed_sales if awi.level == 0 else awi.state.needed_supplies
@@ -46,6 +51,8 @@ class QuantityBasedReward(RewardFunction):
     def __call__(self, awi: OneShotAWI, action: dict[str, tuple[int, int, int]], info: Any) -> float:
         needs = awi.state.needed_sales if awi.level == 0 else awi.state.needed_supplies
         return abs(info) - abs(needs) if get_current_negotiation_round(awi) != 0 else 0
+
+
 
 class TestReducingNeedsReward(RewardFunction):
     def before_action(self, awi: OneShotAWI) -> Any:
