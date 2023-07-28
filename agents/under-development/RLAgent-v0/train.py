@@ -31,7 +31,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.monitor import Monitor
 
 from util import get_dirname
-from observation import BetterFixedPartnerNumbersObservationManager
+from observation import BetterFixedPartnerNumbersObservationManager, DictBetterObservationManager
 from reward import (
     ReducingNeedsReward,
     QuantityBasedReward,
@@ -83,6 +83,7 @@ def train(
         env_kwargs : dict = dict(),
         model_kwargs : dict = dict(),
         learning_kwargs : dict = dict(),
+        name_suffix: str = "",
         **kwargs,
 ):
     if n_envs  > 1:
@@ -101,8 +102,10 @@ def train(
         model = alg.load(pretrained, env=env_train)
         model_name = f"{os.path.basename(pretrained)}_{total_timesteps}-additional-steps"
     else:
-        model = alg("MlpPolicy", env_train, verbose=verbose, tensorboard_log=logdir, n_steps=n_steps, **model_kwargs)
+        model = alg("MultiInputPolicy", env_train, verbose=verbose, tensorboard_log=logdir, n_steps=n_steps, **model_kwargs)
         model_name = f"{algorithm}_L{level}_{n_partners}-partners_{time.strftime('%Y%m%d-%H%M%S')}_{total_timesteps}-steps"
+    
+    model_name += name_suffix
     
     if checkpoint_freq:
         checkpoint_callback = CheckpointCallback(
@@ -142,12 +145,16 @@ if __name__ == '__main__':
     # pretrained = os.path.join(get_dirname(__file__), "models", "checkpoints", "PPO_L0_4-partners_102400-steps_20230724-122807_61440_steps")
     pretrained = None
 
-    def exponential_decay(initial_learning_rate, final_learning_rate, t):
-        return initial_learning_rate * (final_learning_rate / initial_learning_rate) ** (1 - t)
+    def exponential_decay(t, initial_value, final_value):
+        return initial_value * (final_value / initial_value) ** (t)
+    
+    def truncated_linear_decay(t, initial_value, final_value, cutoff):
+        slope = (final_value - initial_value) / cutoff
+        return max(final_value, (t * slope) + 1)
 
     train(
-        obs_manager_type=BetterFixedPartnerNumbersObservationManager,
-        reward_function=QuantityBasedReward(),
+        obs_manager_type=DictBetterObservationManager,
+        reward_function=ReducingNeedsReward(),
         algorithm="PPO", 
         total_timesteps=total_timesteps, 
         logdir=logdir,
@@ -158,6 +165,7 @@ if __name__ == '__main__':
         n_steps=steps_per_update,
         n_envs=4, 
         env_kwargs=dict(),
-        model_kwargs={'learning_rate': lambda t: exponential_decay(1e-2, 1e-5, t)},
+        model_kwargs={'learning_rate': 0.01},
         learning_kwargs=dict(),
+        name_suffix='_DICTOBS',
     )
