@@ -24,6 +24,7 @@ from scml.oneshot.rl.observation import (
 from scml.oneshot.rl.reward import DefaultRewardFunction, RewardFunction
 
 import gymnasium as gym
+from gymnasium import spaces
 
 from stable_baselines3 import A2C, PPO, DQN
 from stable_baselines3.common.callbacks import CheckpointCallback
@@ -102,10 +103,16 @@ def train(
         model = alg.load(pretrained, env=env_train)
         model_name = f"{os.path.basename(pretrained)}_{total_timesteps}-additional-steps"
     else:
-        model = alg("MultiInputPolicy", env_train, verbose=verbose, tensorboard_log=logdir, n_steps=n_steps, **model_kwargs)
+        if type(env_train.observation_space) == spaces.Dict:
+            policy = "MultiInputPolicy"
+        else:
+            policy = "MlpPolicy"
+        model = alg(policy, env_train, verbose=verbose, tensorboard_log=logdir, n_steps=n_steps, **model_kwargs)
         model_name = f"{algorithm}_L{level}_{n_partners}-partners_{time.strftime('%Y%m%d-%H%M%S')}_{total_timesteps}-steps"
     
     model_name += name_suffix
+
+    print(f"Training model {model_name}")
     
     if checkpoint_freq:
         checkpoint_callback = CheckpointCallback(
@@ -130,12 +137,12 @@ def train(
 if __name__ == '__main__':
     logdir = os.path.join(get_dirname(__file__), "logs", "")
 
-    steps_per_update = 1024
-    n_updates = 1000
+    steps_per_update = 512
+    n_updates = 2000
     total_timesteps = steps_per_update * n_updates
 
     min_checkpoint_freq = 20_480
-    max_checkpoint_freq = 51_200
+    max_checkpoint_freq = 102_400
 
     if total_timesteps < min_checkpoint_freq * 4:
         checkpoint_freq = 0
@@ -154,7 +161,7 @@ if __name__ == '__main__':
 
     train(
         obs_manager_type=DictBetterObservationManager,
-        reward_function=ReducingNeedsReward(),
+        # reward_function=ReducingNeedsReward(),
         algorithm="PPO", 
         total_timesteps=total_timesteps, 
         logdir=logdir,
@@ -165,7 +172,7 @@ if __name__ == '__main__':
         n_steps=steps_per_update,
         n_envs=4, 
         env_kwargs=dict(),
-        model_kwargs={'learning_rate': 0.01},
+        model_kwargs={'learning_rate': 1e-3},
         learning_kwargs=dict(),
-        name_suffix='_DICTOBS',
+        name_suffix='_DICTOBS_lr=1e-3',
     )
