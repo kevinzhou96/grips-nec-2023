@@ -1,5 +1,7 @@
 import os
 import time
+import sys
+import argparse
 
 import numpy as np
 from negmas.gb.common import ResponseType
@@ -76,7 +78,7 @@ def train(
         algorithm : str = "PPO",
         progress_bar : bool = True,
         verbose : bool = False,
-        logdir : str | None = None,
+        log_dir : str | None = None,
         checkpoint_freq : int = 0,
         pretrained : str | None = None,
         n_steps : int = 2048,
@@ -84,7 +86,8 @@ def train(
         env_kwargs : dict = dict(),
         model_kwargs : dict = dict(),
         learning_kwargs : dict = dict(),
-        name_suffix: str = "",
+        save_dir: str = "models",
+        name_suffix: str | None = None,
         **kwargs,
 ):
     if n_envs  > 1:
@@ -107,17 +110,21 @@ def train(
             policy = "MultiInputPolicy"
         else:
             policy = "MlpPolicy"
-        model = alg(policy, env_train, verbose=verbose, tensorboard_log=logdir, n_steps=n_steps, **model_kwargs)
+        model = alg(policy, env_train, verbose=verbose, tensorboard_log=log_dir, n_steps=n_steps, **model_kwargs)
         model_name = f"{algorithm}_L{level}_{n_partners}-partners_{time.strftime('%Y%m%d-%H%M%S')}_{total_timesteps}-steps"
     
-    model_name += name_suffix
+    if not name_suffix: model_name += name_suffix
 
     print(f"Training model {model_name}")
-    
+
+    if not os.path.isabs(save_dir):
+        save_dir = os.path.join(get_dirname(__file__), save_dir)
+    save_path = os.path.join(save_dir, model_name)    
+
     if checkpoint_freq:
         checkpoint_callback = CheckpointCallback(
             save_freq=(checkpoint_freq // n_envs),
-            save_path=os.path.join(get_dirname(__file__),"models","checkpoints", model_name),
+            save_path=os.path.join(save_dir,"checkpoints", model_name),
             name_prefix=model_name,
         )
         print(f"Checkpointing every {checkpoint_freq} iters")
@@ -132,25 +139,77 @@ def train(
         **learning_kwargs,
     )
 
-    model.save(os.path.join(get_dirname(__file__), "models", model_name))
+    model.save(save_path)
 
 if __name__ == '__main__':
-    logdir = os.path.join(get_dirname(__file__), "logs", "")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--log_dir", 
+                        default=os.path.join("logs", ""),
+                        help="specifies the directory to save TensorBoard log files. Default is 'logs/'", 
+                        )
+    parser.add_argument("--save_dir",
+                        default=os.path.join("models", ""),
+                        help="specifies the directory to save the model. Default is 'models/'")
+    parser.add_argument("--steps-per-update", 
+                        type=int, default=1024,
+                        help="specifies the number of timesteps to run between policy updates. Default is 1024", 
+                        )
+    parser.add_argument("--n-updates", 
+                        type=int, 
+                        default=1000,
+                        help="specifies the number of times the policy should be updated during training. Default is 1000", 
+                        )
+    parser.add_argument("--checkpoint-freq", 
+                        help="specifies the frequency (in steps) for saving checkpoints. Default is total_timesteps / 10, with min frequency 20,480 and max frequency 102,400",
+                        )
+    parser.add_argument("--pretrained", 
+                        help="specifies a file to load a pretrained model from for continued training",
+                        )
+    parser.add_argument("-v", "--verbose", 
+                        action="store_true", 
+                        help="toggles on verbose output for training",
+                        )
+    parser.add_argument("--no-progress-bar",
+                        action="store_true",
+                        help="toggles off the training progress bar",
+                        )
+    parser.add_argument("-a", "--algorithm",
+                        choices=["A2C", "PPO"],
+                        default="PPO",
+                        help="specifies the learning algorithm. Currently allowed choices are A2C and PPO. Default is PPO",
+                        )
+    parser.add_argument("--n-envs",
+                        type=int,
+                        default=1,
+                        help="specifies the number of parallel training environments. Default is 1 (no parallel training)",
+                        )
+    parser.add_argument("--learning-rate",
+                        type=float,
+                        default=1e-3,
+                        help="sets the learning rate for training. Default is 1e-3")
+    parser.add_argument("--name-suffix",
+                        help="adds a suffix to the model name")
+    args = parser.parse_args()
 
-    steps_per_update = 512
-    n_updates = 2000
-    total_timesteps = steps_per_update * n_updates
 
-    min_checkpoint_freq = 20_480
-    max_checkpoint_freq = 102_400
-
-    if total_timesteps < min_checkpoint_freq * 4:
-        checkpoint_freq = 0
+    if os.path.isabs(args.log_dir):
+        log_dir = args.log_dir
     else:
-        checkpoint_freq = max(min_checkpoint_freq, min((n_updates // 10)* steps_per_update, max_checkpoint_freq))
+        log_dir = os.path.join(get_dirname(__file__), args.log_dir)
 
-    # pretrained = os.path.join(get_dirname(__file__), "models", "checkpoints", "PPO_L0_4-partners_102400-steps_20230724-122807_61440_steps")
-    pretrained = None
+    total_timesteps = args.steps_per_update * args.n_updates
+
+    if args.checkpoint_freq:
+        checkpoint_freq = args.checkpoint_freq
+    else:
+        min_checkpoint_freq = 20_480
+        max_checkpoint_freq = 102_400
+        if total_timesteps < min_checkpoint_freq * 4:
+            checkpoint_freq = 0
+        else:
+            checkpoint_freq = max(min_checkpoint_freq, min((n_updates // 10)* steps_per_update, max_checkpoint_freq))
+
+    progress_bar = not args.no_progress_bar
 
     def exponential_decay(t, initial_value, final_value):
         return initial_value * (final_value / initial_value) ** (t)
@@ -162,17 +221,18 @@ if __name__ == '__main__':
     train(
         obs_manager_type=DictBetterObservationManager,
         # reward_function=ReducingNeedsReward(),
-        algorithm="PPO", 
+        algorithm=args.algorithm, 
         total_timesteps=total_timesteps, 
-        logdir=logdir,
-        progress_bar=True,
-        verbose=False,
+        log_dir=log_dir,
+        progress_bar=progress_bar,
+        verbose=args.verbose,
         checkpoint_freq=checkpoint_freq,
-        pretrained=pretrained,
-        n_steps=steps_per_update,
-        n_envs=4, 
+        pretrained=args.pretrained,
+        n_steps=args.steps_per_update,
+        n_envs=args.n_envs, 
         env_kwargs=dict(),
-        model_kwargs={'learning_rate': 1e-3},
+        model_kwargs={'learning_rate': args.learning_rate},
         learning_kwargs=dict(),
-        name_suffix='_DICTOBS_lr=1e-3',
+        save_dir=args.save_dir,
+        name_suffix=args.name_suffix,
     )
