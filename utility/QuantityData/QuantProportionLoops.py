@@ -2,13 +2,13 @@ import csv
 from AgentQuantTrackerClass import AgentQuantTracker
 from collections import defaultdict
 
-with open(r'FILE_PATH_HERE', newline='') as f:
+with open(r'FILE_PATH_GOES_HERE', newline='') as f:
     reader = csv.reader(f)
     data = list(reader)
 
-#print(data[0][6]) # simulation day completed (0-19)
-#print(type(data[0][7])) # quantity agreed in contract
-#print(data[1][11]) # day concluded at (-1 if exogenous)
+# print(data[0][6])       # simulation day completed (0-19)
+# print(data[0][7])       # quantity agreed in contract
+# print(data[0][11])      # day concluded at (-1 if exogenous)
 
 TotalAgentData = []
 AgentsNEQData = defaultdict(int)
@@ -45,15 +45,15 @@ for agent in TotalAgentData:
         if abs(int(agent.exo) - int(agent.quant)) == 0:
             BQOAnotmissedinstances += 1
             
-print(QOAinstances)
-print(QOAnotmissedinstances)
-print(QOAabsdiff)
-print(BQOAinstances)
-print(BQOAnotmissedinstances)
-print(BQOAabsdiff)
+# print(QOAinstances)
+# print(QOAnotmissedinstances)
+# print(QOAabsdiff)
+# print(BQOAinstances)
+# print(BQOAnotmissedinstances)
+# print(BQOAabsdiff)
 
-QOAMR = 1.0 - (float(QOAnotmissedinstances) / float(QOAinstances))
-BQOAMR = 1.0 - (float(BQOAnotmissedinstances) / float(BQOAinstances))
+QOAMR = 1.0 - (float(QOAnotmissedinstances) / float(QOAinstances))     # Percentage of days where exogenous and non-exogenous quantities were mismatched
+BQOAMR = 1.0 - (float(BQOAnotmissedinstances) / float(BQOAinstances))  # Percentage of days where exogenous and non-exogenous quantities were mismatched
 
 print('QOA miss rate: %f' % QOAMR)
 print('QOA average miss quantity: %f' % (float(QOAabsdiff) / float(QOAinstances - QOAnotmissedinstances)))     
