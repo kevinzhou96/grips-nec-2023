@@ -17,19 +17,6 @@ results = anac2023_oneshot(
 
 results = shorten_names(results)
 
-results.scores.loc[:, ["agent_name", "agent_type", "score"]].head()
-
-results.scores["level"] = results.scores.agent_name.str.split("@", expand=True).loc[:, 1]
-results.scores = results.scores.sort_values("level")
-sns.lineplot(data=results.scores[["agent_type", "level", "score"]],
-             x="level", y="score", hue="agent_type")
-plt.plot([0.0] * len(results.scores["level"].unique()), "b--")
-plt.show()
-
-results.score_stats
-
-results.scores.loc[:, ["agent_name", "agent_type", "score"]].head()
-
 level0score_total = defaultdict(float)
 level0instances = defaultdict(float)
 level0avg = defaultdict(float)
@@ -45,9 +32,6 @@ for i in range(len(results.scores[["agent_type", "level", "score"]])):
     else:
         level1instances[results.scores[["agent_type", "level", "score"]].agent_type[i]] += 1.0
         level1score_total[results.scores[["agent_type", "level", "score"]].agent_type[i]] += results.scores[["agent_type", "level", "score"]].score[i]
-    
-print('Level 0 instances:', level0instances)
-print('Level 1 instances:', level1instances)
 
 for _ in level0instances:
     level0avg[_] = level0score_total[_] / level0instances[_]
