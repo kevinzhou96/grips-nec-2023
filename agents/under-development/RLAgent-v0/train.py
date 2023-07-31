@@ -207,7 +207,7 @@ if __name__ == '__main__':
         if total_timesteps < min_checkpoint_freq * 4:
             checkpoint_freq = 0
         else:
-            checkpoint_freq = max(min_checkpoint_freq, min((n_updates // 10)* steps_per_update, max_checkpoint_freq))
+            checkpoint_freq = max(min_checkpoint_freq, min((args.n_updates // 10)* args.steps_per_update, max_checkpoint_freq))
 
     progress_bar = not args.no_progress_bar
 
