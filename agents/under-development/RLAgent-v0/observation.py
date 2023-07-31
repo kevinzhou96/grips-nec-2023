@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Protocol
+from negmas import SAOResponse, ResponseType
 
 import numpy as np
 from attr import define, field
@@ -20,11 +21,11 @@ from scml.oneshot.rl.factory import (
     LimitedPartnerNumbersOneShotFactory,
     OneShotWorldFactory,
 )
-from scml.oneshot.rl.observation import ObservationManager
+from scml.oneshot.rl.observation import ObservationManager, BaseObservationManager
 from scml.scml2019.common import QUANTITY, UNIT_PRICE
 
 @define(frozen=True)
-class BetterFixedPartnerNumbersObservationManager(ObservationManager):
+class BetterFixedPartnerNumbersObservationManager(BaseObservationManager):
     n_bins: int = 10
     n_sigmas: int = 2
     extra_checks: bool = True
@@ -184,6 +185,36 @@ class BetterFixedPartnerNumbersObservationManager(ObservationManager):
             ), f"{v=}\n{space.nvec=}\n{space.nvec - v =}\n{ (state.exogenous_input_quantity , state.total_supplies , state.total_sales , state.exogenous_output_quantity) }"  # type: ignore
 
         return v
+    
+    def get_offers(self, awi: OneShotAWI, encoded : dict[str, np.ndarray | int | float]) -> dict[str, SAOResponse]:
+        offers = encoded[: 2 * self.n_partners].reshape((self.n_partners, 2))
+        partners = awi.my_partners[:self.n_partners]
+        responses = dict()
+        minprice = (
+            awi.current_output_issues
+            if awi.is_first_level
+            else awi.current_input_issues
+        )[UNIT_PRICE].min_value
+        
+        for partner, offer in zip(partners, offers):
+            if offer[0] == offer[1] == 0:
+                responses[partner] = SAOResponse(ResponseType.END_NEGOTIATION, None)
+                continue
+
+            outcome = (offer[0], awi.current_step, offer[1] + minprice)
+
+            if self.extra_checks:
+                os = (
+                    awi.current_input_outcome_space
+                    if awi.is_first_level
+                    else awi.current_output_outcome_space
+                )
+                assert (
+                    outcome in os
+                ), f"received {outcome} from {partner} ({offer}) in step {awi.current_step} for OS {os}\n{encoded=}"
+            responses[partner] = SAOResponse(ResponseType.REJECT_OFFER, outcome)
+
+        return responses
 
     def is_valid(self, env) -> bool:
         """Checks that it is OK to use this observation manager with a given `OneShotEnv`"""
@@ -197,7 +228,7 @@ class BetterFixedPartnerNumbersObservationManager(ObservationManager):
 
 
 @define(frozen=True)
-class DictBetterObservationManager(ObservationManager):
+class DictBetterObservationManager(BaseObservationManager):
     n_bins: int = 10
     n_sigmas: int = 2
     extra_checks: bool = True
@@ -321,3 +352,33 @@ class DictBetterObservationManager(ObservationManager):
         obs["output_trading_price"] = np.asarray([min(state.trading_prices[state.my_output_product], self.max_trading_price)])
 
         return obs
+    
+    def get_offers(self, awi: OneShotAWI, encoded : dict[str, np.ndarray | int | float]) -> dict[str, SAOResponse]:
+        offers = encoded["offers"].reshape((self.n_partners, 2))
+        partners = awi.my_partners[:self.n_partners]
+        responses = dict()
+        minprice = (
+            awi.current_output_issues
+            if awi.is_first_level
+            else awi.current_input_issues
+        )[UNIT_PRICE].min_value
+        
+        for partner, offer in zip(partners, offers):
+            if offer[0] == offer[1] == 0:
+                responses[partner] = SAOResponse(ResponseType.END_NEGOTIATION, None)
+                continue
+
+            outcome = (offer[0], awi.current_step, offer[1] + minprice)
+
+            if self.extra_checks:
+                os = (
+                    awi.current_input_outcome_space
+                    if awi.is_first_level
+                    else awi.current_output_outcome_space
+                )
+                assert (
+                    outcome in os
+                ), f"received {outcome} from {partner} ({offer}) in step {awi.current_step} for OS {os}\n{encoded=}"
+            responses[partner] = SAOResponse(ResponseType.REJECT_OFFER, outcome)
+
+        return responses
