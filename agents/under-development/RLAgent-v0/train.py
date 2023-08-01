@@ -199,9 +199,14 @@ def parse_args(default_values : dict[str, Any]):
                         default=default_values["log_dir"],
                         help="specifies the directory to save TensorBoard log files. Default is 'logs/'", 
                         )
+    parser.add_argument("--disable-logging",
+                        action="store_true",
+                        help="turns off Tensorboard logging"
+                        )
     parser.add_argument("--save-dir",
                         default=default_values["save_dir"],
-                        help="specifies the directory to save the model. Default is 'models/'")
+                        help="specifies the directory to save the model. Default is 'models/'",
+                        )
     parser.add_argument("--steps-per-update", 
                         type=int, 
                         default=default_values["steps_per_update"],
