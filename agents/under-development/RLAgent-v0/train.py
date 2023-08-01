@@ -2,8 +2,10 @@ import os
 import time
 import sys
 import argparse
+from typing import Any
 
 import numpy as np
+
 from negmas.gb.common import ResponseType
 from negmas.sao.common import SAOResponse
 
@@ -47,7 +49,9 @@ def make_training_env(
         reward_function : RewardFunction = DefaultRewardFunction(),
         extra_checks : bool = False,
 ) -> OneShotEnv:
-    
+    """
+    Creates a OneShotEnv for use in training.
+    """
     if level == 0:
         n_consumers = n_partners
         n_suppliers = 0
@@ -69,6 +73,7 @@ def make_training_env(
         reward_function=reward_function,
     )
 
+
 def train(
         level : int = 0,
         n_partners : int = 4,
@@ -77,57 +82,103 @@ def train(
         total_timesteps : int = 10_000,
         algorithm : str = "PPO",
         progress_bar : bool = True,
-        verbose : bool = False,
+        verbose : int = 1,
         log_dir : str | None = None,
         checkpoint_freq : int = 0,
         pretrained : str | None = None,
         n_steps : int = 2048,
-        n_envs : int = 1,
+        n_envs : int = 4,
         env_kwargs : dict = dict(),
         model_kwargs : dict = dict(),
         learning_kwargs : dict = dict(),
         save_dir: str = "models",
         name_suffix: str | None = None,
         **kwargs,
-):
+) -> PPO | A2C:
+    """
+    Trains and saves an RL model for an SCML OneShot negotiating agent.
+    
+    Args:
+        level: The level (process) in which the agent will be placed
+        n_partners: The number of negotiating partners the agent will have in the other level
+        obs_manager_type: The observation manager for the training environment. Note that this argument should be passed as a subclass of ObservationManager
+        reward_function: The reward function for the training environment. Note that this argument should be passed as an instance of a RewardFunction
+        total_timesteps: The total number of timesteps to run the training algorithm
+        algorithm: The RL algorithm to be used for training, given as a string. Currently, PPO and A2C are supported
+        progress_bar: Whether or not to display a progress bar during training.
+        verbose: Controls the verbosity of output during training. 0 prints nothing, 1 prints basic information about the model, 2 turns on 
+                 verbosity for Stable Baselines 3 functions. Default is 1
+        log_dir: Specifies the directory (either absolute, or relative to the location of train.py) for saving TensorBoard logs
+        checkpoint_freq: The frequency (in timesteps) at which checkpoints should be saved. The default value of 0 means no checkpoints will be saved
+        pretrained: Specifies the name of a zip folder containing a previously trained model, to be used as a starting point for further training
+        n_steps: The number of timesteps to run for each environment per update. Note that the default value of 2048 is the Stable Baselines 3 default value
+                 for PPO. The default value for A2C is much lower, however, it is likely worth considering the number of steps that are likely to occur in a 
+                 single run of an SCML world in order to best decide the value of n_steps
+        n_envs: The number of environments to run in parallel during training
+        env_kwargs: Any keyword arguments that should be passed to the environment creation function
+        model_kwargs: Any keyword arguments that should be passed to the model creation function 
+        learning_kwargs: Any keyword arguments that should be passed to the learning function
+        save_dir: Specifies the directory (either absolute, or relative to the location of train.py) for saving the final trained model
+        name_suffx: A suffix to append onto the model name (usually used to attach additional notes about the model)
+
+    Returns:
+        The trained agent
+    """
+
+    sb3verbose = True if verbose == 2 else False
+
+    # create the training environment
     if n_envs  > 1:
-        env_train = SubprocVecEnv([lambda: Monitor(make_training_env(level=level, n_partners=n_partners, obs_manager_type=obs_manager_type, reward_function=reward_function, **env_kwargs)) 
+        env_train = SubprocVecEnv([lambda: Monitor(make_training_env(level=level, 
+                                                                     n_partners=n_partners, 
+                                                                     obs_manager_type=obs_manager_type, 
+                                                                     reward_function=reward_function, 
+                                                                     **env_kwargs,
+                                                                     )) 
                                    for _ in range(n_envs)])
     else:
-        env_train = make_training_env(level=level, n_partners=n_partners, obs_manager_type=obs_manager_type, reward_function=reward_function, **env_kwargs)
+        env_train = make_training_env(level=level, 
+                                      n_partners=n_partners, 
+                                      obs_manager_type=obs_manager_type, 
+                                      reward_function=reward_function, 
+                                      **env_kwargs,
+                                      )
 
     alg = dict(
         PPO=PPO,
         A2C=A2C,
-        DQN=DQN,
     )[algorithm]
     
+    # load a pretrained model, or create a new one 
     if pretrained:
         model = alg.load(pretrained, env=env_train)
         model_name = f"{os.path.basename(pretrained)}_{total_timesteps}-additional-steps"
     else:
+        # Dict spaces require a MultiInputPolicy
         if type(env_train.observation_space) == spaces.Dict:
             policy = "MultiInputPolicy"
         else:
             policy = "MlpPolicy"
-        model = alg(policy, env_train, verbose=verbose, tensorboard_log=log_dir, n_steps=n_steps, **model_kwargs)
+        model = alg(policy, env_train, verbose=sb3verbose, tensorboard_log=log_dir, n_steps=n_steps, **model_kwargs)
         model_name = f"{algorithm}_L{level}_{n_partners}-partners_{time.strftime('%Y%m%d-%H%M%S')}_{total_timesteps}-steps"
-    
     if not name_suffix: model_name += name_suffix
 
-    print(f"Training model {model_name}")
+    if verbose:
+        print(f"Training model {model_name}")
 
     if not os.path.isabs(save_dir):
         save_dir = os.path.join(get_dirname(__file__), save_dir)
     save_path = os.path.join(save_dir, model_name)    
 
+    # activate checkpointing. If parallel training is used, save_freq must be scaled to account for one step parallel step being equivalent to n_envs individual steps
     if checkpoint_freq:
         checkpoint_callback = CheckpointCallback(
             save_freq=(checkpoint_freq // n_envs),
             save_path=os.path.join(save_dir,"checkpoints", model_name),
             name_prefix=model_name,
         )
-        print(f"Checkpointing every {checkpoint_freq} iters")
+        if verbose:
+            print(f"Checkpointing every {checkpoint_freq} iters")
     else:
         checkpoint_callback = None
 
@@ -140,23 +191,25 @@ def train(
     )
 
     model.save(save_path)
+    return model
 
-if __name__ == '__main__':
+def parse_args(default_values : dict[str, Any]):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--log_dir", 
-                        default=os.path.join("logs", ""),
+    parser.add_argument("--log-dir", 
+                        default=default_values["log_dir"],
                         help="specifies the directory to save TensorBoard log files. Default is 'logs/'", 
                         )
-    parser.add_argument("--save_dir",
-                        default=os.path.join("models", ""),
+    parser.add_argument("--save-dir",
+                        default=default_values["save_dir"],
                         help="specifies the directory to save the model. Default is 'models/'")
     parser.add_argument("--steps-per-update", 
-                        type=int, default=1024,
+                        type=int, 
+                        default=default_values["steps_per_update"],
                         help="specifies the number of timesteps to run between policy updates. Default is 1024", 
                         )
     parser.add_argument("--n-updates", 
                         type=int, 
-                        default=1000,
+                        default=default_values["n_updates"],
                         help="specifies the number of times the policy should be updated during training. Default is 1000", 
                         )
     parser.add_argument("--checkpoint-freq", 
@@ -175,25 +228,39 @@ if __name__ == '__main__':
                         )
     parser.add_argument("-a", "--algorithm",
                         choices=["A2C", "PPO"],
-                        default="PPO",
+                        default=default_values["algorithm"],
                         help="specifies the learning algorithm. Currently allowed choices are A2C and PPO. Default is PPO",
                         )
     parser.add_argument("--n-envs",
                         type=int,
-                        default=1,
-                        help="specifies the number of parallel training environments. Default is 1 (no parallel training)",
+                        default=default_values["n_envs"],
+                        help="specifies the number of parallel training environments. Default is 4",
                         )
     parser.add_argument("--learning-rate",
                         type=float,
-                        default=1e-3,
+                        default=default_values["learning_rate"],
                         help="sets the learning rate for training. Default is 1e-3")
     parser.add_argument("--name-suffix",
                         help="adds a suffix to the model name")
-    args = parser.parse_args()
+    
+    return parser.parse_args()
 
 
+if __name__ == '__main__':
+    default_values = {
+        "log_dir": os.path.join("logs", ""),
+        "save_dir": os.path.join("models", ""),
+        "steps_per_update": 1024,
+        "n_updates": 1000,
+        "algorithm": "PPO",
+        "n_envs": 4,
+        "learning_rate": 1e-3,
+    }
+    args = parse_args(default_values=default_values)
+    
     if os.path.isabs(args.log_dir):
         log_dir = args.log_dir
+    # make log_dir relative to location of train.py
     else:
         log_dir = os.path.join(get_dirname(__file__), args.log_dir)
 
@@ -201,6 +268,7 @@ if __name__ == '__main__':
 
     if args.checkpoint_freq:
         checkpoint_freq = args.checkpoint_freq
+    # default checkpointing behaviour is to scale checkpoint frequency with total number of timesteps, with min frequency 20,480 and max frequency 102,400
     else:
         min_checkpoint_freq = 20_480
         max_checkpoint_freq = 102_400
@@ -211,6 +279,8 @@ if __name__ == '__main__':
 
     progress_bar = not args.no_progress_bar
 
+    # decay functions that can be used to vary the learning rate. Note that the Stable Baselines learning_rate input parameter represents
+    # the amount of time remaining, so decay functions should be passed to train() as lambda t: decay_fn(1-t, ...)
     def exponential_decay(t, initial_value, final_value):
         return initial_value * (final_value / initial_value) ** (t)
     
@@ -218,6 +288,8 @@ if __name__ == '__main__':
         slope = (final_value - initial_value) / cutoff
         return max(final_value, (t * slope) + 1)
 
+    # Since the obs_manager_type and reward_function arguments are a class and an instance of a class, these parameters are not handled through 
+    # command line arguments, and so should be specified directly in the call to train()
     train(
         obs_manager_type=DictBetterObservationManager,
         # reward_function=ReducingNeedsReward(),
