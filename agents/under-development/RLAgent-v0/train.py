@@ -19,6 +19,7 @@ from scml.oneshot.rl.env import OneShotEnv
 from scml.oneshot.rl.factory import (
     FixedPartnerNumbersOneShotFactory,
     LimitedPartnerNumbersOneShotFactory,
+    OneShotWorldFactory,
 )
 from scml.oneshot.rl.observation import (
     FixedPartnerNumbersObservationManager,
@@ -26,6 +27,8 @@ from scml.oneshot.rl.observation import (
     ObservationManager
 )
 from scml.oneshot.rl.reward import DefaultRewardFunction, RewardFunction
+
+from scml_agents.scml2023.oneshot import QuantityOrientedAgent, CCAgent, KanbeAgent
 
 import gymnasium as gym
 from gymnasium import spaces
@@ -41,11 +44,14 @@ from reward import (
     ReducingNeedsReward,
     QuantityBasedReward,
 )
+from factory import FixedPartnerNumberWithOpponentsOneShotFactory
 
 def make_training_env(
         level : int,
         n_partners : int,
         obs_manager_type : ObservationManager,
+        factory_type : OneShotWorldFactory = FixedPartnerNumbersOneShotFactory,
+        factory_params : dict[str, Any] = dict(),
         reward_function : RewardFunction = DefaultRewardFunction(),
         extra_checks : bool = False,
 ) -> OneShotEnv:
@@ -59,10 +65,11 @@ def make_training_env(
         n_consumers = 0
         n_suppliers = n_partners
 
-    factory = FixedPartnerNumbersOneShotFactory(
+    factory = factory_type(
         n_suppliers=n_suppliers,
         n_consumers=n_consumers,
         level=level,
+        **factory_params,
     )
 
     return OneShotEnv(
@@ -78,6 +85,8 @@ def train(
         level : int = 0,
         n_partners : int = 4,
         obs_manager_type : ObservationManager = FixedPartnerNumbersObservationManager,
+        factory_type : OneShotWorldFactory = FixedPartnerNumbersOneShotFactory,
+        factory_params : dict[str, Any] = dict(),
         reward_function : RewardFunction = DefaultRewardFunction(),
         total_timesteps : int = 10_000,
         algorithm : str = "PPO",
@@ -101,8 +110,10 @@ def train(
     Args:
         level: The level (process) in which the agent will be placed
         n_partners: The number of negotiating partners the agent will have in the other level
-        obs_manager_type: The observation manager for the training environment. Note that this argument should be passed as a subclass of ObservationManager
-        reward_function: The reward function for the training environment. Note that this argument should be passed as an instance of a RewardFunction
+        obs_manager_type: The observation manager for the training environment. Note that this argument should be a subclass of ObservationManager
+        factory_type: The world factory for the training environment. Note that this argument should be a subclass of OneShotWorldFactory
+        factory_params: Any parameters that should be passed to the world factory
+        reward_function: The reward function for the training environment. Note that this argument should be an instance of a RewardFunction
         total_timesteps: The total number of timesteps to run the training algorithm
         algorithm: The RL algorithm to be used for training, given as a string. Currently, PPO and A2C are supported
         progress_bar: Whether or not to display a progress bar during training.
@@ -132,6 +143,8 @@ def train(
         env_train = SubprocVecEnv([lambda: Monitor(make_training_env(level=level, 
                                                                      n_partners=n_partners, 
                                                                      obs_manager_type=obs_manager_type, 
+                                                                     factory_type=factory_type,
+                                                                     factory_params=factory_params,
                                                                      reward_function=reward_function, 
                                                                      **env_kwargs,
                                                                      )) 
@@ -140,6 +153,8 @@ def train(
         env_train = make_training_env(level=level, 
                                       n_partners=n_partners, 
                                       obs_manager_type=obs_manager_type, 
+                                      factory_type=factory_type,
+                                      factory_params=factory_params,
                                       reward_function=reward_function, 
                                       **env_kwargs,
                                       )
@@ -297,6 +312,8 @@ if __name__ == '__main__':
     # command line arguments, and so should be specified directly in the call to train()
     train(
         obs_manager_type=DictBetterObservationManager,
+        # factory_type=FixedPartnerNumberWithOpponentsOneShotFactory,
+        # factory_params={"opponent_agents": [QuantityOrientedAgent, CCAgent, KanbeAgent]}, # NOTE: I have not checked if these previous agents are compatible with the current version of SCML. Proceed at your own risk
         # reward_function=ReducingNeedsReward(),
         algorithm=args.algorithm, 
         total_timesteps=total_timesteps, 
