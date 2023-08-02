@@ -5,13 +5,15 @@ import random
 import numpy as np
 from collections import defaultdict
 from pprint import pprint
+from tabulate import tabulate
+from typing import Any
 
 from negmas.gb.common import ResponseType
 from negmas.sao.common import SAOResponse
-from negmas.helpers import humanize_time
 
 from scml.oneshot import is_system_agent
 from scml.oneshot.common import QUANTITY
+from scml.oneshot.agent import OneShotAgent
 from scml.oneshot.rl.action import (
     ActionManager,
     DefaultActionManager
@@ -20,66 +22,74 @@ from scml.oneshot.rl.agent import OneShotRLAgent
 from scml.oneshot.rl.common import model_wrapper
 from scml.oneshot.rl.env import OneShotEnv
 from scml.oneshot.rl.factory import (
+    OneShotWorldFactory,
     FixedPartnerNumbersOneShotFactory,
     LimitedPartnerNumbersOneShotFactory,
 )
 from scml.oneshot.rl.observation import (
     FixedPartnerNumbersObservationManager,
     LimitedPartnerNumbersObservationManager,
+    ObservationManager
 )
 from scml.utils import anac2023_oneshot
 from scml.oneshot.agents import GreedyOneShotAgent, SingleAgreementAspirationAgent, SyncRandomOneShotAgent
 
 from scml_agents.scml2023 import QuantityOrientedAgent, CCAgent, KanbeAgent
 
-from stable_baselines3 import A2C, PPO, DQN
+from stable_baselines3 import A2C, PPO
 
 from tqdm import tqdm
 
 from util import format_time, get_dirname
-from observation import BetterFixedPartnerNumbersObservationManager
+from observation import BetterFixedPartnerNumbersObservationManager, DictBetterObservationManager
 
-# def test_tournament(
-#         agent : OneShotRLAgent,
-#         n_steps : tuple[int, int] | int = (50,200),
-#         n_configs : int = 20
-# ):
-#     competitors = [agent, QuantityOrientedAgent, CCAgent]
-#     start = time.perf_counter()
-#     if isinstance(n_steps, tuple):
-#         n_steps = random.randint(n_steps[0], n_steps[1])
-#     results = anac2023_oneshot(
-#         competitors=competitors,
-#         n_steps=n_steps,
-#         n_configs=n_configs,
-#     )
-#     results.total_scores.agent_type = results.total_scores.agent_type.str.split(  # type: ignore
-#         "."
-#     ).str[
-#         -1
-#     ]
-#     # display results
-#     print(tabulate(results.total_scores, headers="keys", tablefmt="psql"))  # type: ignore
-#     print(f"Finished in {humanize_time(time.perf_counter() - start)}")
+def test_tournament(
+        agent : OneShotRLAgent,
+        n_configs : int = 20,
+        opponents : list[OneShotAgent] = [QuantityOrientedAgent, CCAgent, KanbeAgent],
+):
+    """
+    Basic script for testing a OneShotRLAgent in a tournament environment
+    
+    A OneShotRLAgent passed to this function should be able to handle arbitrary tournament worlds.
+    """
+    competitors = [agent] + opponents
+    start = time.perf_counter()
+    results = anac2023_oneshot(
+        competitors=competitors,
+        n_configs=n_configs,
+    )
+    results.total_scores.agent_type = results.total_scores.agent_type.str.split(  # type: ignore
+        "."
+    ).str[
+        -1
+    ]
+    # display results
+    print(tabulate(results.total_scores, headers="keys", tablefmt="psql"))  # type: ignore
+    print(f"Finished in {format_time(time.perf_counter() - start)}")
+
+    return results
 
 
 def test(
-        model,
-        obs_manager_type,
-        level : int,
-        n_partners : int,
+        model : Any,
+        obs_manager_type : ObservationManager,
+        factory : OneShotWorldFactory,
+        act_manager_type : ActionManager = DefaultActionManager,
         n_trials : int = 20,
 ):
-    if level == 0:
-        n_consumers = n_partners
-        n_suppliers = 0
-    else:
-        n_consumers = 0
-        n_suppliers = n_partners
-    
-    factory = FixedPartnerNumbersOneShotFactory(level=level, n_consumers=n_consumers, n_suppliers=n_suppliers)
+    """
+    Basic script for testing a single trained model
+
+    Args:
+        model: A trained Stable Baselines 3 model
+        obs_manager_type: The class name for the observation manager that the model will use
+        factory: An instance of a OneShotWorldFactory to be used to generate worlds for testing
+        act_manager_type: The class name for the action manager that the model will use
+    """
+
     obs_manager = obs_manager_type(factory=factory, extra_checks=False)
-    act_manager = DefaultActionManager(factory=factory)
+    act_manager = act_manager_type(factory=factory)
 
     type_scores = defaultdict(float)
     counts = defaultdict(int)
@@ -137,20 +147,18 @@ def print_type_scores(type_scores):
 
 if __name__ == '__main__':
     models = [
-        # 'PPO_L0_4-partners_10000-steps_20230721-122249',
-        # ('PPO_L0_4-partners_20230726-141236_102400-steps', BetterFixedPartnerNumbersObservationManager),
-        ('PPO_L0_4-partners_20230726-144321_102400-steps', BetterFixedPartnerNumbersObservationManager),
+        ('PPO_L0_4-partners_DICTOBS_20230731-110939', DictBetterObservationManager),
     ]
     for modelname, obsmanager in models:
         model = PPO.load(os.path.join(get_dirname(__file__), "models", modelname))
+
+        factory = FixedPartnerNumbersOneShotFactory(n_consumers=4)
         
         world, ascores, tscores = test(
             model=model, 
-            obs_manager_type=obsmanager,
-            level=0, 
-            n_partners=4, 
-            n_trials=40,
+            obs_manager_type=obsmanager, 
+            factory=factory,
+            n_trials=50,
         )
         print(f"Model {modelname} scores:")
         print_type_scores(tscores)
-        # print(analyze_contracts(world))
