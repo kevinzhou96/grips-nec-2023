@@ -55,8 +55,8 @@ class BetterFixedPartnerNumbersObservationManager(BaseObservationManager):
             - The current round of negotations
             - The number of competitors
             - The current relative simulation time
-            - The curent disposal cost (** how is this going to be represented? **)
-            - The current shortfall penalty (** how is this going to be represented? **)
+            - The curent disposal cost
+            - The current shortfall penalty
             - The relative price increase from input to output product
             - Maybe: parameters of disposal cost and shortfall penalty distributions
         """
@@ -229,8 +229,9 @@ class BetterFixedPartnerNumbersObservationManager(BaseObservationManager):
 
 @define(frozen=True)
 class DictBetterObservationManager(BaseObservationManager):
-    n_bins: int = 10
-    n_sigmas: int = 2
+    """
+    An observation manager that utilizes a Dict observation space to easily and accurately capture many important aspects of the current state
+    """
     extra_checks: bool = True
     n_prices: int = 2
     negotiation_limit: int = 40
@@ -271,15 +272,16 @@ class DictBetterObservationManager(BaseObservationManager):
         Creates the observation space.
         
         The observation space consists of:
-            - The quantity and price for each incoming offer
+            - The quantity and price (represented as high and low) for each incoming offer
             - The current needed quantity
             - The current round of negotations
-            - The number of competitors
-            - The current relative simulation time
-            - The curent disposal cost (** how is this going to be represented? **)
-            - The current shortfall penalty (** how is this going to be represented? **)
-            - The relative price increase from input to output product
-            - Maybe: parameters of disposal cost and shortfall penalty distributions
+            - The number of competitors (i.e. same-level factories)
+            - The current simulation step
+            - The curent disposal cost
+            - The current shortfall penalty
+            - The production cost
+            - The current input trading price
+            - The current output trading price
         """
 
         return spaces.Dict(
