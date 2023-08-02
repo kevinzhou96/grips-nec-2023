@@ -51,14 +51,3 @@ class QuantityBasedReward(RewardFunction):
     def __call__(self, awi: OneShotAWI, action: dict[str, tuple[int, int, int]], info: Any) -> float:
         needs = awi.state.needed_sales if awi.level == 0 else awi.state.needed_supplies
         return abs(info) - abs(needs) if get_current_negotiation_round(awi) != 0 else 0
-
-
-
-class TestReducingNeedsReward(RewardFunction):
-    def before_action(self, awi: OneShotAWI) -> Any:
-        needs = awi.state.needed_sales if awi.level == 0 else awi.state.needed_supplies
-        return needs
-
-    def __call__(self, awi: OneShotAWI, action: dict[str, tuple[int, int, int]], info: Any) -> float:
-        current_needs = awi.state.needed_sales if awi.level == 0 else awi.state.needed_supplies
-        return info - current_needs
