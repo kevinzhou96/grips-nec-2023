@@ -119,7 +119,7 @@ def train(
         progress_bar: Whether or not to display a progress bar during training.
         verbose: Controls the verbosity of output during training. 0 prints nothing, 1 prints basic information about the model, 2 turns on 
                  verbosity for Stable Baselines 3 functions. Default is 1
-        log_dir: Specifies the directory (either absolute, or relative to the location of train.py) for saving TensorBoard logs
+        log_dir: Specifies the directory (either absolute, or relative to the location of train.py) for saving TensorBoard logs. Passing None will turn off logging
         checkpoint_freq: The frequency (in timesteps) at which checkpoints should be saved. The default value of 0 means no checkpoints will be saved
         pretrained: Specifies the name of a zip folder containing a previously trained model, to be used as a starting point for further training
         n_steps: The number of timesteps to run for each environment per update. Note that the default value of 2048 is the Stable Baselines 3 default value
@@ -176,7 +176,7 @@ def train(
             policy = "MlpPolicy"
         model = alg(policy, env_train, verbose=sb3verbose, tensorboard_log=log_dir, n_steps=n_steps, **model_kwargs)
         model_name = f"{algorithm}_L{level}_{n_partners}-partners_{time.strftime('%Y%m%d-%H%M%S')}_{total_timesteps}-steps"
-    if not name_suffix: model_name += name_suffix
+    if name_suffix: model_name += name_suffix
 
     if verbose:
         print(f"Training model {model_name}")
@@ -211,7 +211,7 @@ def train(
 def parse_args(default_values : dict[str, Any]):
     parser = argparse.ArgumentParser()
     parser.add_argument("--log-dir", 
-                        default=default_values["log_dir"],
+                        default=default_values.get("log_dir"),
                         help="specifies the directory to save TensorBoard log files. Default is 'logs/'", 
                         )
     parser.add_argument("--disable-logging",
@@ -219,17 +219,17 @@ def parse_args(default_values : dict[str, Any]):
                         help="turns off Tensorboard logging"
                         )
     parser.add_argument("--save-dir",
-                        default=default_values["save_dir"],
+                        default=default_values.get("save_dir"),
                         help="specifies the directory to save the model. Default is 'models/'",
                         )
     parser.add_argument("--steps-per-update", 
                         type=int, 
-                        default=default_values["steps_per_update"],
+                        default=default_values.get("steps_per_update"),
                         help="specifies the number of timesteps to run between policy updates. Default is 1024", 
                         )
     parser.add_argument("--n-updates", 
                         type=int, 
-                        default=default_values["n_updates"],
+                        default=default_values.get("n_updates"),
                         help="specifies the number of times the policy should be updated during training. Default is 1000", 
                         )
     parser.add_argument("--checkpoint-freq", 
@@ -239,7 +239,8 @@ def parse_args(default_values : dict[str, Any]):
                         help="specifies a file to load a pretrained model from for continued training",
                         )
     parser.add_argument("-v", "--verbose", 
-                        action="store_true", 
+                        action="count", 
+                        default=default_values.get("verbose"),
                         help="toggles on verbose output for training",
                         )
     parser.add_argument("--no-progress-bar",
@@ -248,20 +249,22 @@ def parse_args(default_values : dict[str, Any]):
                         )
     parser.add_argument("-a", "--algorithm",
                         choices=["A2C", "PPO"],
-                        default=default_values["algorithm"],
+                        default=default_values.get("algorithm"),
                         help="specifies the learning algorithm. Currently allowed choices are A2C and PPO. Default is PPO",
                         )
     parser.add_argument("--n-envs",
                         type=int,
-                        default=default_values["n_envs"],
+                        default=default_values.get("n_envs"),
                         help="specifies the number of parallel training environments. Default is 4",
                         )
     parser.add_argument("--learning-rate",
                         type=float,
-                        default=default_values["learning_rate"],
+                        default=default_values.get("learning_rate"),
                         help="sets the learning rate for training. Default is 1e-3")
     parser.add_argument("--name-suffix",
-                        help="adds a suffix to the model name")
+                        default=default_values.get("name_suffix"),
+                        help="adds a suffix to the model name",
+                        )
     
     return parser.parse_args()
 
@@ -272,9 +275,11 @@ if __name__ == '__main__':
         "save_dir": os.path.join("models", ""),
         "steps_per_update": 1024,
         "n_updates": 1000,
+        "verbose": 1,
         "algorithm": "PPO",
         "n_envs": 4,
         "learning_rate": 1e-3,
+        "name_suffix": "",
     }
     args = parse_args(default_values=default_values)
     
@@ -314,7 +319,7 @@ if __name__ == '__main__':
         obs_manager_type=DictBetterObservationManager,
         # factory_type=FixedPartnerNumberWithOpponentsOneShotFactory,
         # factory_params={"opponent_agents": [QuantityOrientedAgent, CCAgent, KanbeAgent]}, # NOTE: I have not checked if these previous agents are compatible with the current version of SCML. Proceed at your own risk
-        # reward_function=ReducingNeedsReward(),
+        reward_function=QuantityBasedReward(),
         algorithm=args.algorithm, 
         total_timesteps=total_timesteps, 
         log_dir=log_dir,
