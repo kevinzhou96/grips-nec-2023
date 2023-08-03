@@ -6,7 +6,7 @@ import numpy as np
 from collections import defaultdict
 from pprint import pprint
 from tabulate import tabulate
-from typing import Any
+from typing import Any, Iterable
 
 from negmas.gb.common import ResponseType
 from negmas.sao.common import SAOResponse
@@ -47,6 +47,7 @@ def test_tournament(
         agent : OneShotRLAgent,
         n_configs : int = 20,
         opponents : list[OneShotAgent] = [QuantityOrientedAgent, CCAgent, KanbeAgent],
+        print_results : bool = True,
 ):
     """
     Basic script for testing a OneShotRLAgent in a tournament environment
@@ -65,40 +66,56 @@ def test_tournament(
         -1
     ]
     # display results
-    print(tabulate(results.total_scores, headers="keys", tablefmt="psql"))  # type: ignore
-    print(f"Finished in {format_time(time.perf_counter() - start)}")
+    if print_results:
+        print(tabulate(results.total_scores, headers="keys", tablefmt="psql"))  # type: ignore
+        print(f"Finished in {format_time(time.perf_counter() - start)}")
 
     return results
 
 
-def test(
-        model : Any,
-        obs_manager_type : ObservationManager,
+def test_model(
+        models : PPO | A2C | list[PPO | A2C],
+        obs_manager_types : ObservationManager | list[ObservationManager],
         factory : OneShotWorldFactory,
-        act_manager_type : ActionManager = DefaultActionManager,
+        act_manager_types : ActionManager | list[ActionManager] = DefaultActionManager,
         n_trials : int = 20,
 ):
     """
-    Basic script for testing a single trained model
+    Basic script for testing trained models
+
+    The input can either be a single model or a list of models. In the case of a list, each model can have its own observation and action manager,
+    or a single one of either can be passed and an instance of the same manager will be used for each model.
 
     Args:
-        model: A trained Stable Baselines 3 model
-        obs_manager_type: The class name for the observation manager that the model will use
+        models: A trained Stable Baselines 3 model, or a list of models
+        obs_manager_types: The class name for the observation manager that the model will use, or a list of observation managers
         factory: An instance of a OneShotWorldFactory to be used to generate worlds for testing
-        act_manager_type: The class name for the action manager that the model will use
+        act_manager_types: The class name for the action manager that the model will use, or a list of action managers
+        n_trials: The number of worlds to simulate
     """
+    assert (not isinstance(obs_manager_types, list) or len(models) == len(obs_manager_types)) and (not isinstance(act_manager_types, list) or len(models) == len(act_manager_types))
+    
+    if not isinstance(models, list):
+        models = [models]
+    models = [model_wrapper(model) for model in models]
 
-    obs_manager = obs_manager_type(factory=factory, extra_checks=False)
-    act_manager = act_manager_type(factory=factory)
+    if not isinstance(obs_manager_types, list):
+        obs_manager_types = [obs_manager_types] * len(models)
+    obs_managers = [obs_manager_type(factory=factory, extra_checks=False) for obs_manager_type in obs_manager_types]
+
+    if not isinstance(act_manager_types, list):
+        act_manager_types = [act_manager_types] * len(models)
+    act_managers = [act_manager_type(factory=factory) for act_manager_type in act_manager_types]
 
     type_scores = defaultdict(float)
     counts = defaultdict(int)
     agent_scores = dict()
 
+
     for _ in tqdm(range(n_trials)):
         world, agents = factory(
             types=(OneShotRLAgent,),
-            params=(dict(models=[model_wrapper(model)], observation_managers=[obs_manager], action_managers=[act_manager]),),
+            params=(dict(models=models, observation_managers=obs_managers, action_managers=act_managers),),
         )
         world.run()
 
@@ -147,16 +164,16 @@ def print_type_scores(type_scores):
 
 if __name__ == '__main__':
     models = [
-        ('PPO_L0_4-partners_DICTOBS_20230731-110939', DictBetterObservationManager),
+        ('PPO_L0_4-partners_DICTOBS_20230731-110939_512000-steps', DictBetterObservationManager),
     ]
     for modelname, obsmanager in models:
         model = PPO.load(os.path.join(get_dirname(__file__), "models", modelname))
 
         factory = FixedPartnerNumbersOneShotFactory(n_consumers=4)
         
-        world, ascores, tscores = test(
-            model=model, 
-            obs_manager_type=obsmanager, 
+        world, ascores, tscores = test_model(
+            models=model, 
+            obs_manager_types=obsmanager, 
             factory=factory,
             n_trials=50,
         )
