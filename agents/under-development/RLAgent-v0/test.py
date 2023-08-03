@@ -107,6 +107,7 @@ def test_model(
         act_manager_types = [act_manager_types] * len(models)
     act_managers = [act_manager_type(factory=factory) for act_manager_type in act_manager_types]
 
+    worlds = []
     type_scores = defaultdict(float)
     counts = defaultdict(int)
     agent_scores = dict()
@@ -135,9 +136,11 @@ def test_model(
             type_ = agent.type_name.split(':')[-1].split('.')[-1]
             type_scores[type_] += all_scores[aid]
             counts[type_] += 1
+        
+        worlds.append(world)
     type_scores = {k: v/counts[k] if counts[k] else v for k, v in type_scores.items()}
 
-    return world, agent_scores, type_scores
+    return worlds, agent_scores, type_scores
 
 
 def analyze_contracts(world):
@@ -171,11 +174,11 @@ if __name__ == '__main__':
 
         factory = FixedPartnerNumbersOneShotFactory(n_consumers=4)
         
-        world, ascores, tscores = test_model(
+        worlds, ascores, tscores = test_model(
             models=model, 
             obs_manager_types=obsmanager, 
             factory=factory,
-            n_trials=50,
+            n_trials=100,
         )
         print(f"Model {modelname} scores:")
         print_type_scores(tscores)
