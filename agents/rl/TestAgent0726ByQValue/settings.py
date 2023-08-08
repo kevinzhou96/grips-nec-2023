@@ -7,7 +7,6 @@ save_counter = 1  #save csv files if (number of initializing all agent) in {m * 
 dawnload_counter = 20 #dawnload csv files if (number of initializing all agent) in {m * dawnload_counter | m is natural number}
 Counter = 0  #initialize
 use_data_of_needs_of_days = False
-treat_level = True　#Whether to find the optimal unit price
 　
 competitors = [AgentForQLearning0726, SimpleOneShotAgent]
 
