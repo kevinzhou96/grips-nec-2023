@@ -1,6 +1,6 @@
 
 
-class TestAgent0803(OneShotSyncAgent):
+class AdoptEnvironmentAgent(OneShotSyncAgent):
     """Based on OneShotSyncAgent"""
 
     def init(self):
