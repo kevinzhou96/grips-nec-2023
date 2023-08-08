@@ -1,4 +1,4 @@
-"""ByQValueAgent.py"""
+"""ByQValueAgent.py"""\
 Acceptance Strategy\
   if step >= 19 or level 0:\
     the best price combination of offers which the most fulfill needs\
