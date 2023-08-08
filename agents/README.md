@@ -1,1 +1,0 @@
-Please put your agents in the corresponding directories: completed for fully functioning agents, and under-development for agents still being worked on.
