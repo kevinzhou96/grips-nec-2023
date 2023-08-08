@@ -1,0 +1,84 @@
+def use_needs_and_number_2(needs, number):
+    result = math.ceil(needs/number) + 2
+    return result
+
+def use_needs_and_number_1(needs, number):
+    result = math.ceil(needs/number) + 1
+    return result
+
+def use_needs_and_number_0(needs, number):
+    result = math.ceil(needs/number) + 0
+    return result
+
+def use_needs_and_number_minus1(needs, number):
+    result = math.ceil(needs/number) - 1
+    return result
+
+def use_only_needs_devide_2(needs, number):
+    result = math.ceil(needs/2)
+    return result
+
+def use_no_information_10(needs, number):
+    result = 10
+    return result
+
+def use_no_information_9(needs, number):
+    result = 9
+    return result
+
+def use_no_information_8(needs, number):
+    result = 8
+    return result
+
+def use_no_information_7(needs, number):
+    result = 7
+    return result
+
+def use_no_information_6(needs, number):
+    result = 6
+    return result
+
+def use_no_information_5(needs, number):
+    result = 5
+    return result
+
+def use_no_information_4(needs, number):
+    result = 4
+    return result
+
+def use_no_information_3(needs, number):
+    result = 3
+    return result
+
+def use_no_information_2(needs, number):
+    result = 2
+    return result
+
+def use_no_information_1(needs, number):
+    result = 1
+    return result
+
+
+treat_level = True  #Whether to find the optimal unit price
+if False:
+    choice_of_quantity = [
+        use_needs_and_number_2,
+        use_needs_and_number_1,
+        use_only_needs_devide_2,
+        use_no_information_3,
+        use_no_information_2,
+        use_no_information_1
+    ]
+else:
+    choice_of_quantity = [
+        use_no_information_1,
+        use_no_information_2,
+        use_no_information_3,
+        use_no_information_4,
+        use_no_information_5,
+        use_no_information_6,
+        use_no_information_7,
+        use_no_information_8,
+        use_no_information_9,
+        use_no_information_10
+    ]
