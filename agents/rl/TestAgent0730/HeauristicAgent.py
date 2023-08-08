@@ -1,4 +1,4 @@
-class TestAgent0730(OneShotSyncAgent):
+class HeauristicAgent(OneShotSyncAgent):
     """Based on OneShotSyncAgent"""
 
     def init(self):
