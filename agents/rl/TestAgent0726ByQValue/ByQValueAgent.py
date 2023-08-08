@@ -1,4 +1,4 @@
-"""You need two files Q_propose_matrix.csv, Q_respond_matrix.csv. """
+"""You need file Q_value_matrix.csv"""
 
 class ByQValueAgent(OneShotSyncAgent):
     """Based on OneShotAgent"""
