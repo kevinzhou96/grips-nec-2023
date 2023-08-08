@@ -1,6 +1,6 @@
 """You need two files Q_propose_matrix.csv, Q_respond_matrix.csv. """
 
-class AgentByQValue0726(OneShotSyncAgent):
+class ByQValueAgent(OneShotSyncAgent):
     """Based on OneShotAgent"""
 
     def init(self):
