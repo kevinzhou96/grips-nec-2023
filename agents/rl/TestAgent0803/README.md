@@ -13,7 +13,7 @@ Acceptance Strategy\
     renew permit_needs as below every 10 days based on the average of remaining final needs for the last 10 day\
   current_permit_needs:\
     at first of each days, current_permit_needs = permit_needs\
-  """\
+  """
 
 Reject and End Strategy\
   after deciding apceptance, \
